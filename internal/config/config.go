@@ -31,6 +31,7 @@ const (
 	FormatAVIF OutputFormat = "avif"
 	FormatTIFF OutputFormat = "tiff"
 	FormatHEIC OutputFormat = "heic"
+	FormatJXL  OutputFormat = "jxl"
 )
 
 // Config содержит все настройки для конвертации.
@@ -73,6 +74,9 @@ type Config struct {
 
 	// Verbose - подробный вывод.
 	Verbose bool
+
+	// NoProgress - отключить прогресс-бар.
+	NoProgress bool
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.
@@ -164,6 +168,8 @@ func (c *Config) VipsOutputSuffix() string {
 	case FormatTIFF:
 		// TIFF без специфичных параметров
 	case FormatHEIC:
+		params = append(params, fmt.Sprintf("Q=%d", c.Quality))
+	case FormatJXL:
 		params = append(params, fmt.Sprintf("Q=%d", c.Quality))
 	}
 

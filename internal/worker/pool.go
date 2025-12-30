@@ -10,6 +10,7 @@ import (
 
 	"github.com/artemshloyda/photoconverter/internal/config"
 	"github.com/artemshloyda/photoconverter/internal/converter"
+	"github.com/artemshloyda/photoconverter/internal/progress"
 	"github.com/artemshloyda/photoconverter/internal/scanner"
 	"github.com/artemshloyda/photoconverter/internal/storage"
 )
@@ -34,8 +35,9 @@ type Pool struct {
 	cfg       *config.Config
 	storage   *storage.Storage
 	converter *converter.Converter
-	stats   Stats
-	verbose bool
+	stats     Stats
+	verbose   bool
+	progress  *progress.Bar
 }
 
 // New создаёт новый пул воркеров.
@@ -46,6 +48,11 @@ func New(cfg *config.Config, st *storage.Storage, conv *converter.Converter) *Po
 		converter: conv,
 		verbose:   cfg.Verbose,
 	}
+}
+
+// SetProgressBar устанавливает прогресс-бар для отображения прогресса.
+func (p *Pool) SetProgressBar(bar *progress.Bar) {
+	p.progress = bar
 }
 
 // Process запускает обработку файлов из канала.
@@ -124,7 +131,14 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 	if !result.Started {
 		// Файл пропущен
 		if p.verbose {
-			fmt.Printf("⏭️  Пропущен: %s (%s)\n", file.RelPath, result.SkipReason)
+			if p.progress != nil && !p.progress.IsDisabled() {
+				p.progress.WriteMessage("⏭️  Пропущен: %s (%s)\n", file.RelPath, result.SkipReason)
+			} else {
+				fmt.Printf("⏭️  Пропущен: %s (%s)\n", file.RelPath, result.SkipReason)
+			}
+		}
+		if p.progress != nil {
+			p.progress.IncrementSkipped()
 		}
 		atomic.AddInt64(&p.stats.Skipped, 1)
 		return
@@ -140,8 +154,15 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 
 	// Dry run mode
 	if p.cfg.DryRun {
-		fmt.Printf("🔄 [dry-run] %s -> %s\n", file.RelPath, dstPath)
+		if p.progress != nil && !p.progress.IsDisabled() {
+			p.progress.WriteMessage("🔄 [dry-run] %s -> %s\n", file.RelPath, dstPath)
+		} else {
+			fmt.Printf("🔄 [dry-run] %s -> %s\n", file.RelPath, dstPath)
+		}
 		_ = p.storage.FinalizeJobOK(result.JobID, dstPath)
+		if p.progress != nil {
+			p.progress.Increment()
+		}
 		atomic.AddInt64(&p.stats.Processed, 1)
 		return
 	}
@@ -152,6 +173,9 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 	if !convResult.Success {
 		p.logError(file.Path, convResult.Error)
 		_ = p.storage.FinalizeJobFailed(result.JobID, convResult.Error.Error())
+		if p.progress != nil {
+			p.progress.IncrementFailed()
+		}
 		atomic.AddInt64(&p.stats.Failed, 1)
 		return
 	}
@@ -164,14 +188,25 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 	}
 
 	if p.verbose {
-		fmt.Printf("✅ %s -> %s (%.2fs)\n", file.RelPath, dstPath, convResult.Duration.Seconds())
+		if p.progress != nil && !p.progress.IsDisabled() {
+			p.progress.WriteMessage("✅ %s -> %s (%.2fs)\n", file.RelPath, dstPath, convResult.Duration.Seconds())
+		} else {
+			fmt.Printf("✅ %s -> %s (%.2fs)\n", file.RelPath, dstPath, convResult.Duration.Seconds())
+		}
+	}
+	if p.progress != nil {
+		p.progress.Increment()
 	}
 	atomic.AddInt64(&p.stats.Processed, 1)
 }
 
 // logError логирует ошибку.
 func (p *Pool) logError(path string, err error) {
-	fmt.Fprintf(os.Stderr, "❌ %s: %v\n", path, err)
+	if p.progress != nil && !p.progress.IsDisabled() {
+		p.progress.WriteMessage("❌ %s: %v\n", path, err)
+	} else {
+		fmt.Fprintf(os.Stderr, "❌ %s: %v\n", path, err)
+	}
 }
 
 // GetStats возвращает текущую статистику.

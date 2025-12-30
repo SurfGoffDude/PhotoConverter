@@ -13,6 +13,7 @@ import (
 
 	"github.com/artemshloyda/photoconverter/internal/config"
 	"github.com/artemshloyda/photoconverter/internal/converter"
+	"github.com/artemshloyda/photoconverter/internal/progress"
 	"github.com/artemshloyda/photoconverter/internal/scanner"
 	"github.com/artemshloyda/photoconverter/internal/storage"
 	"github.com/artemshloyda/photoconverter/internal/vipsfinder"
@@ -29,6 +30,9 @@ var (
 
 // cfg содержит глобальную конфигурацию.
 var cfg = config.DefaultConfig()
+
+// configPath содержит путь к файлу конфигурации.
+var configPath string
 
 // NewRootCmd создаёт корневую команду CLI.
 func NewRootCmd() *cobra.Command {
@@ -66,7 +70,7 @@ func NewRootCmd() *cobra.Command {
 
 	// Выходные параметры
 	outFormat := flags.String("out-format", string(cfg.OutputFormat),
-		"Выходной формат: webp, jpg, png, avif, tiff, heic")
+		"Выходной формат: webp, jpg, png, avif, tiff, heic, jxl")
 	flags.IntVar(&cfg.Quality, "quality", cfg.Quality, "Качество для lossy форматов (1-100)")
 	flags.BoolVar(&cfg.StripMetadata, "strip", cfg.StripMetadata, "Удалить метаданные из изображений")
 
@@ -84,15 +88,48 @@ func NewRootCmd() *cobra.Command {
 
 	// Вывод
 	flags.BoolVarP(&cfg.Verbose, "verbose", "v", cfg.Verbose, "Подробный вывод")
+	flags.BoolVar(&cfg.NoProgress, "no-progress", cfg.NoProgress, "Отключить прогресс-бар")
+
+	// Конфигурационный файл
+	flags.StringVar(&configPath, "config", "", "Путь к файлу конфигурации (YAML)")
 
 	// Обязательные флаги
 	_ = rootCmd.MarkFlagRequired("in")
 	_ = rootCmd.MarkFlagRequired("out")
 
-	// Парсинг enum-флагов
+	// Парсинг конфигурации и enum-флагов
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		cfg.OutputFormat = config.OutputFormat(*outFormat)
-		cfg.Mode = config.Mode(*mode)
+		// Загружаем конфигурацию из файла (если есть)
+		fc, loadedPath, err := config.FindAndLoadConfig(configPath)
+		if err != nil {
+			return fmt.Errorf("ошибка загрузки конфигурации: %w", err)
+		}
+		if fc != nil {
+			// Применяем настройки из файла
+			fc.ApplyToConfig(cfg)
+			if cfg.Verbose {
+				fmt.Printf("📄 Загружен конфиг: %s\n", loadedPath)
+			}
+		}
+
+		// CLI флаги переопределяют значения из файла
+		// (cobra уже применила их к cfg)
+		if cmd.Flags().Changed("out-format") {
+			cfg.OutputFormat = config.OutputFormat(*outFormat)
+		} else if fc != nil && fc.Output != nil && fc.Output.Format != "" {
+			// Уже применено в ApplyToConfig
+		} else {
+			cfg.OutputFormat = config.OutputFormat(*outFormat)
+		}
+
+		if cmd.Flags().Changed("mode") {
+			cfg.Mode = config.Mode(*mode)
+		} else if fc != nil && fc.Processing != nil && fc.Processing.Mode != "" {
+			// Уже применено в ApplyToConfig
+		} else {
+			cfg.Mode = config.Mode(*mode)
+		}
+
 		return nil
 	}
 
@@ -158,9 +195,9 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	scan := scanner.New(cfg)
 
 	// Считаем файлы для отображения прогресса
+	fileCount, _ := scan.CountFiles()
 	if cfg.Verbose {
-		count, _ := scan.CountFiles()
-		fmt.Printf("📁 Найдено файлов для обработки: %d\n", count)
+		fmt.Printf("📁 Найдено файлов для обработки: %d\n", fileCount)
 	}
 
 	// Запускаем сканирование
@@ -168,6 +205,14 @@ func runConvert(cmd *cobra.Command, args []string) error {
 
 	// Создаём пул воркеров
 	pool := worker.New(cfg, store, conv)
+
+	// Создаём прогресс-бар
+	progressBar := progress.New(progress.Options{
+		Total:       int64(fileCount),
+		Description: "🔄 Конвертация",
+		Disabled:    cfg.NoProgress || cfg.DryRun,
+	})
+	pool.SetProgressBar(progressBar)
 
 	// Выводим параметры
 	fmt.Printf("🚀 Запуск конвертации:\n")
@@ -183,6 +228,9 @@ func runConvert(cmd *cobra.Command, args []string) error {
 
 	// Запускаем обработку
 	stats := pool.Process(ctx, files, errChan)
+
+	// Завершаем прогресс-бар
+	progressBar.Finish()
 
 	// Выводим результаты
 	duration := time.Since(startTime)

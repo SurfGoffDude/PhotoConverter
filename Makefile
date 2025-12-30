@@ -171,15 +171,6 @@ build-windows-amd64: $(DIST_DIR)
 		-o $(DIST_DIR)/$(APP_NAME)-windows-amd64.exe ./cmd/photoconverter || \
 		echo "$(YELLOW)Требуется mingw-w64 для Windows$(NC)"
 
-## Docker
-
-# Сборка Docker образа
-docker-build:
-	@echo "$(GREEN)Сборка Docker образа...$(NC)"
-	docker build -t $(APP_NAME):$(VERSION) .
-	docker tag $(APP_NAME):$(VERSION) $(APP_NAME):latest
-	@echo "$(GREEN)Образ: $(APP_NAME):$(VERSION)$(NC)"
-
 ## Справка
 
 # Показать справку
@@ -215,9 +206,6 @@ help:
 	@echo ""
 	@echo "Очистка:"
 	@echo "  clean          - Удалить артефакты сборки"
-	@echo ""
-	@echo "Docker:"
-	@echo "  docker-build   - Собрать Docker образ"
 	@echo ""
 	@echo "Примеры использования утилиты:"
 	@echo "  ./$(APP_NAME) --in ./photos --out ./converted"
