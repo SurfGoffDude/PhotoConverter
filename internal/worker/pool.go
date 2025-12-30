@@ -65,21 +65,23 @@ func FormatBytes(bytes int64) string {
 
 // Pool управляет пулом воркеров для обработки файлов.
 type Pool struct {
-	cfg       *config.Config
-	storage   *storage.Storage
-	converter *converter.Converter
-	stats     Stats
-	verbose   bool
-	progress  *progress.Bar
+	cfg           *config.Config
+	storage       *storage.Storage
+	converter     *converter.Converter
+	stats         Stats
+	verbose       bool
+	progress      *progress.Bar
+	memoryLimiter *MemoryLimiter
 }
 
 // New создаёт новый пул воркеров.
 func New(cfg *config.Config, st *storage.Storage, conv *converter.Converter) *Pool {
 	return &Pool{
-		cfg:       cfg,
-		storage:   st,
-		converter: conv,
-		verbose:   cfg.Verbose,
+		cfg:           cfg,
+		storage:       st,
+		converter:     conv,
+		verbose:       cfg.Verbose,
+		memoryLimiter: NewMemoryLimiter(cfg.MaxMemoryMB),
 	}
 }
 
@@ -198,6 +200,18 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 		}
 		atomic.AddInt64(&p.stats.Processed, 1)
 		return
+	}
+
+	// Ограничение памяти: ждём если превышен лимит
+	if p.memoryLimiter.IsEnabled() {
+		release, err := p.memoryLimiter.Acquire(ctx, file.Info.Size)
+		if err != nil {
+			p.logError(file.Path, fmt.Errorf("memory limiter: %w", err))
+			_ = p.storage.FinalizeJobFailed(result.JobID, err.Error())
+			atomic.AddInt64(&p.stats.Failed, 1)
+			return
+		}
+		defer release()
 	}
 
 	// Выполняем конвертацию

@@ -114,6 +114,12 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
+	// Устанавливаем переменные окружения для GPU ускорения
+	cmd.Env = os.Environ()
+	if c.cfg.UseGPU {
+		cmd.Env = append(cmd.Env, "VIPS_OPENCL=1")
+	}
+
 	err := cmd.Run()
 	duration := time.Since(start)
 

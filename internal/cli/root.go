@@ -99,6 +99,9 @@ func NewRootCmd() *cobra.Command {
 
 	// Производительность
 	flags.IntVar(&cfg.Workers, "workers", cfg.Workers, "Количество параллельных воркеров")
+	flags.BoolVar(&cfg.Stream, "stream", cfg.Stream, "Потоковый режим без предварительного подсчёта файлов")
+	flags.IntVar(&cfg.MaxMemoryMB, "max-memory", cfg.MaxMemoryMB, "Ограничение памяти в МБ (0 = без ограничения)")
+	flags.BoolVar(&cfg.UseGPU, "gpu", cfg.UseGPU, "Использовать GPU ускорение (OpenCL)")
 
 	// Пути
 	flags.StringVar(&cfg.DBPath, "db", cfg.DBPath, "Путь к SQLite базе данных")
@@ -375,10 +378,16 @@ func runNormalMode(ctx context.Context, pool *worker.Pool, startTime time.Time) 
 	// Создаём сканер
 	scan := scanner.New(cfg)
 
-	// Считаем файлы для отображения прогресса
-	fileCount, _ := scan.CountFiles()
-	if cfg.Verbose {
-		fmt.Printf("📁 Найдено файлов для обработки: %d\n", fileCount)
+	var fileCount int64 = -1 // -1 означает неизвестное количество (streaming режим)
+
+	// В обычном режиме считаем файлы для прогресс-бара
+	if !cfg.Stream {
+		fileCount, _ = scan.CountFiles()
+		if cfg.Verbose {
+			fmt.Printf("📁 Найдено файлов для обработки: %d\n", fileCount)
+		}
+	} else if cfg.Verbose {
+		fmt.Println("🌊 Потоковый режим: обработка файлов по мере обнаружения")
 	}
 
 	// Запускаем сканирование
@@ -386,9 +395,9 @@ func runNormalMode(ctx context.Context, pool *worker.Pool, startTime time.Time) 
 
 	// Создаём прогресс-бар
 	progressBar := progress.New(progress.Options{
-		Total:       int64(fileCount),
+		Total:       fileCount,
 		Description: "🔄 Конвертация",
-		Disabled:    cfg.NoProgress || cfg.DryRun,
+		Disabled:    cfg.NoProgress || cfg.DryRun || cfg.Stream,
 	})
 	pool.SetProgressBar(progressBar)
 

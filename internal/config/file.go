@@ -81,6 +81,15 @@ type ProcessingConfig struct {
 
 	// Watch - режим слежения за директорией.
 	Watch bool `yaml:"watch,omitempty"`
+
+	// Stream - потоковый режим без предварительного подсчёта файлов.
+	Stream bool `yaml:"stream,omitempty"`
+
+	// MaxMemoryMB - ограничение памяти в мегабайтах.
+	MaxMemoryMB int `yaml:"max_memory_mb,omitempty"`
+
+	// UseGPU - использовать GPU ускорение (OpenCL).
+	UseGPU bool `yaml:"use_gpu,omitempty"`
 }
 
 // PathsConfig содержит настройки путей.
@@ -195,13 +204,16 @@ func FromConfig(cfg *Config) *FileConfig {
 			MaxHeight:     cfg.MaxHeight,
 		},
 		Processing: &ProcessingConfig{
-			Workers:    cfg.Workers,
-			Mode:       string(cfg.Mode),
-			DryRun:     cfg.DryRun,
-			Verbose:    cfg.Verbose,
-			NoProgress: cfg.NoProgress,
-			Preset:     cfg.Preset,
-			Watch:      cfg.Watch,
+			Workers:     cfg.Workers,
+			Mode:        string(cfg.Mode),
+			DryRun:      cfg.DryRun,
+			Verbose:     cfg.Verbose,
+			NoProgress:  cfg.NoProgress,
+			Preset:      cfg.Preset,
+			Watch:       cfg.Watch,
+			Stream:      cfg.Stream,
+			MaxMemoryMB: cfg.MaxMemoryMB,
+			UseGPU:      cfg.UseGPU,
 		},
 		Paths: &PathsConfig{
 			DB:       dbPath,
@@ -318,6 +330,15 @@ func (fc *FileConfig) ApplyToConfig(cfg *Config) {
 		}
 		if fc.Processing.Watch {
 			cfg.Watch = true
+		}
+		if fc.Processing.Stream {
+			cfg.Stream = true
+		}
+		if fc.Processing.MaxMemoryMB > 0 {
+			cfg.MaxMemoryMB = fc.Processing.MaxMemoryMB
+		}
+		if fc.Processing.UseGPU {
+			cfg.UseGPU = true
 		}
 	}
 

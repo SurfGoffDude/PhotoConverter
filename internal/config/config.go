@@ -89,6 +89,15 @@ type Config struct {
 
 	// Watch - режим слежения за директорией.
 	Watch bool
+
+	// Stream - потоковый режим без предварительного подсчёта файлов.
+	Stream bool
+
+	// MaxMemoryMB - ограничение использования памяти в мегабайтах (0 = без ограничения).
+	MaxMemoryMB int
+
+	// UseGPU - использовать GPU ускорение (OpenCL).
+	UseGPU bool
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.

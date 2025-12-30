@@ -20,7 +20,7 @@ GREEN := \033[0;32m
 YELLOW := \033[0;33m
 NC := \033[0m # No Color
 
-.PHONY: all build install clean test run help deps lint check-vips cross \
+.PHONY: all build install install-go uninstall clean test run help deps lint check-vips cross \
         build-linux build-darwin build-windows
 
 # По умолчанию - сборка
@@ -40,11 +40,26 @@ build-debug:
 	$(GO) build -o $(APP_NAME) ./cmd/photoconverter
 	@echo "$(GREEN)Готово: ./$(APP_NAME)$(NC)"
 
-# Установка в $GOPATH/bin
-install:
-	@echo "$(GREEN)Установка $(APP_NAME)...$(NC)"
+# Установка в /usr/local/bin (требует sudo)
+install: build
+	@echo "$(GREEN)Установка $(APP_NAME) в /usr/local/bin...$(NC)"
+	@sudo cp $(APP_NAME) /usr/local/bin/$(APP_NAME)
+	@sudo chmod +x /usr/local/bin/$(APP_NAME)
+	@echo "$(GREEN)Установлено: /usr/local/bin/$(APP_NAME)$(NC)"
+	@echo "$(GREEN)Теперь можно использовать: photoconverter$(NC)"
+
+# Установка в $GOPATH/bin (без sudo)
+install-go:
+	@echo "$(GREEN)Установка $(APP_NAME) в \$$GOPATH/bin...$(NC)"
 	$(GO) install $(GOFLAGS) -ldflags "$(LDFLAGS)" ./cmd/photoconverter
 	@echo "$(GREEN)Установлено в $(shell go env GOPATH)/bin/$(APP_NAME)$(NC)"
+	@echo "$(YELLOW)Убедитесь, что $(shell go env GOPATH)/bin в вашем PATH$(NC)"
+
+# Удаление из /usr/local/bin
+uninstall:
+	@echo "$(GREEN)Удаление $(APP_NAME)...$(NC)"
+	@sudo rm -f /usr/local/bin/$(APP_NAME)
+	@echo "$(GREEN)Удалено$(NC)"
 
 ## Зависимости
 
@@ -183,7 +198,9 @@ help:
 	@echo "Сборка:"
 	@echo "  build          - Сборка для текущей платформы"
 	@echo "  build-debug    - Сборка с отладочной информацией"
-	@echo "  install        - Установка в \$$GOPATH/bin"
+	@echo "  install        - Установка в /usr/local/bin (требует sudo)"
+	@echo "  install-go     - Установка в \$$GOPATH/bin (без sudo)"
+	@echo "  uninstall      - Удаление из /usr/local/bin"
 	@echo "  cross          - Кросс-компиляция для всех платформ"
 	@echo ""
 	@echo "Зависимости:"
