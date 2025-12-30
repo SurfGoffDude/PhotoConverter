@@ -151,6 +151,79 @@ func FindAndLoadConfig(configPath string) (*FileConfig, string, error) {
 	return nil, "", nil
 }
 
+// FromConfig создаёт FileConfig из основной конфигурации.
+// Используется для сохранения текущих настроек в файл.
+func FromConfig(cfg *Config) *FileConfig {
+	keepTree := cfg.KeepTree
+	return &FileConfig{
+		Input: &InputConfig{
+			Dir:        cfg.InputDir,
+			Extensions: cfg.InputExtensions,
+		},
+		Output: &OutputConfig{
+			Dir:           cfg.OutputDir,
+			Format:        string(cfg.OutputFormat),
+			Quality:       cfg.Quality,
+			StripMetadata: cfg.StripMetadata,
+			KeepTree:      &keepTree,
+		},
+		Processing: &ProcessingConfig{
+			Workers:    cfg.Workers,
+			Mode:       string(cfg.Mode),
+			DryRun:     cfg.DryRun,
+			Verbose:    cfg.Verbose,
+			NoProgress: cfg.NoProgress,
+		},
+		Paths: &PathsConfig{
+			DB:       cfg.DBPath,
+			VipsPath: cfg.VipsPath,
+		},
+	}
+}
+
+// SaveToFile сохраняет конфигурацию в указанный файл YAML.
+func (fc *FileConfig) SaveToFile(path string) error {
+	// Создаём директорию если не существует
+	dir := filepath.Dir(path)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("не удалось создать директорию %s: %w", dir, err)
+		}
+	}
+
+	// Сериализуем в YAML
+	data, err := yaml.Marshal(fc)
+	if err != nil {
+		return fmt.Errorf("ошибка сериализации конфигурации: %w", err)
+	}
+
+	// Добавляем заголовок с комментарием
+	header := "# PhotoConverter Configuration File\n# Сгенерировано автоматически с помощью --save-config\n# CLI флаги имеют приоритет над этим файлом.\n\n"
+	data = append([]byte(header), data...)
+
+	// Записываем в файл
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("не удалось записать файл %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// SaveConfig сохраняет конфигурацию в файл.
+// Если path пустой, сохраняет в ./photoconverter.yaml
+func SaveConfig(cfg *Config, path string) (string, error) {
+	if path == "" {
+		path = "photoconverter.yaml"
+	}
+
+	fc := FromConfig(cfg)
+	if err := fc.SaveToFile(path); err != nil {
+		return "", err
+	}
+
+	return path, nil
+}
+
 // ApplyToConfig применяет настройки из файла к основной конфигурации.
 // CLI флаги имеют приоритет над файлом конфигурации, поэтому
 // эта функция должна вызываться до парсинга CLI флагов.

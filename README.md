@@ -121,6 +121,7 @@ photoconverter --in ./photos --out ./converted --in-ext heic --out-format jpg --
 | `-v, --verbose` | Подробный вывод | false |
 | `--no-progress` | Отключить прогресс-бар | false |
 | `--config` | Путь к YAML конфигу | (автопоиск) |
+| `--save-config` | Сохранить настройки в YAML файл | - |
 
 ### Режимы работы
 
@@ -164,6 +165,13 @@ processing:
 ```
 
 CLI флаги имеют приоритет над конфигурационным файлом.
+
+**Сохранение настроек в файл:**
+
+```bash
+# Сохранить текущие настройки в файл
+photoconverter --in ./photos --out ./converted --out-format webp --quality 90 --save-config photoconverter.yaml
+```
 
 ### Примеры
 

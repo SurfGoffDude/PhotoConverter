@@ -30,6 +30,7 @@ photoconverter [flags]
 | `-v, --verbose` | bool | нет | false | Подробный вывод |
 | `--no-progress` | bool | нет | false | Отключить прогресс-бар |
 | `--config` | string | нет | (автопоиск) | Путь к файлу конфигурации (YAML) |
+| `--save-config` | string | нет | - | Сохранить настройки в YAML файл и выйти |
 
 ### Подкоманды
 

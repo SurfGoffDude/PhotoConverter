@@ -34,6 +34,9 @@ var cfg = config.DefaultConfig()
 // configPath содержит путь к файлу конфигурации.
 var configPath string
 
+// saveConfigPath содержит путь для сохранения конфигурации.
+var saveConfigPath string
+
 // NewRootCmd создаёт корневую команду CLI.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -92,6 +95,7 @@ func NewRootCmd() *cobra.Command {
 
 	// Конфигурационный файл
 	flags.StringVar(&configPath, "config", "", "Путь к файлу конфигурации (YAML)")
+	flags.StringVar(&saveConfigPath, "save-config", "", "Сохранить текущие настройки в YAML файл и выйти")
 
 	// Обязательные флаги
 	_ = rootCmd.MarkFlagRequired("in")
@@ -147,6 +151,16 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	// Валидация конфигурации
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("ошибка конфигурации: %w", err)
+	}
+
+	// Сохранение конфигурации если указан флаг --save-config
+	if saveConfigPath != "" {
+		savedPath, err := config.SaveConfig(cfg, saveConfigPath)
+		if err != nil {
+			return fmt.Errorf("ошибка сохранения конфигурации: %w", err)
+		}
+		fmt.Printf("💾 Конфигурация сохранена в: %s\n", savedPath)
+		return nil
 	}
 
 	// Создаём контекст с обработкой сигналов
