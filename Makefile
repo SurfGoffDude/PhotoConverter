@@ -15,13 +15,16 @@ LDFLAGS := -s -w \
 BUILD_DIR := build
 DIST_DIR := dist
 
+# Минимальное покрытие тестами (%)
+COVERAGE_MIN := 20
+
 # Цвета для вывода
 GREEN := \033[0;32m
 YELLOW := \033[0;33m
 NC := \033[0m # No Color
 
-.PHONY: all build install install-go uninstall clean test run help deps lint check-vips cross \
-        build-linux build-darwin build-windows
+.PHONY: all build install install-go uninstall clean test test-coverage coverage coverage-check \
+        coverage-badge run help deps lint check-vips cross build-linux build-darwin build-windows
 
 # По умолчанию - сборка
 all: build
@@ -121,6 +124,38 @@ test-coverage:
 	$(GO) test -coverprofile=coverage.out ./...
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	@echo "$(GREEN)Отчёт: coverage.html$(NC)"
+
+# Показать процент покрытия
+coverage:
+	@echo "$(GREEN)Покрытие тестами:$(NC)"
+	@$(GO) test -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@$(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}'
+
+# Проверка минимального покрытия (по умолчанию 50%)
+coverage-check:
+	@echo "$(GREEN)Проверка покрытия (минимум $(COVERAGE_MIN)%)...$(NC)"
+	@$(GO) test -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%'); \
+	if [ $$(echo "$$COVERAGE < $(COVERAGE_MIN)" | bc) -eq 1 ]; then \
+		echo "$(YELLOW)Покрытие $$COVERAGE% меньше минимума $(COVERAGE_MIN)%$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)Покрытие $$COVERAGE% >= $(COVERAGE_MIN)%$(NC)"; \
+	fi
+
+# Генерация бейджа покрытия
+coverage-badge:
+	@echo "$(GREEN)Генерация бейджа покрытия...$(NC)"
+	@$(GO) test -coverprofile=coverage.out ./... > /dev/null 2>&1
+	@COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%'); \
+	COLOR="red"; \
+	if [ $$(echo "$$COVERAGE >= 80" | bc) -eq 1 ]; then COLOR="brightgreen"; \
+	elif [ $$(echo "$$COVERAGE >= 60" | bc) -eq 1 ]; then COLOR="green"; \
+	elif [ $$(echo "$$COVERAGE >= 40" | bc) -eq 1 ]; then COLOR="yellow"; \
+	elif [ $$(echo "$$COVERAGE >= 20" | bc) -eq 1 ]; then COLOR="orange"; \
+	fi; \
+	echo "Coverage: $$COVERAGE% ($$COLOR)"; \
+	echo "Badge URL: https://img.shields.io/badge/coverage-$$COVERAGE%25-$$COLOR"
 
 ## Запуск
 

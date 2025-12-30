@@ -1,5 +1,11 @@
 # PhotoConverter
 
+[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/SurfGoffDude/PhotoConverter/actions/workflows/ci.yml/badge.svg)](https://github.com/SurfGoffDude/PhotoConverter/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/SurfGoffDude/PhotoConverter?include_prereleases)](https://github.com/SurfGoffDude/PhotoConverter/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SurfGoffDude/PhotoConverter)](https://goreportcard.com/report/github.com/SurfGoffDude/PhotoConverter)
+
 Мультиплатформенная CLI утилита для массовой конвертации изображений с использованием libvips.
 
 ## Особенности
@@ -312,30 +318,28 @@ make version
 
 ### Высокий приоритет
 
-- [x] **Прогресс-бар** — визуальный индикатор прогресса с ETA при обработке больших коллекций
-- [x] **Конфигурационный файл** — поддержка YAML конфига для сохранения часто используемых настроек
-- [x] **Поддержка JPEG XL** — добавлен выходной формат JXL с отличным соотношением качества к размеру
+- [ ] **Web UI** — веб-интерфейс для мониторинга и управления задачами (React + WebSocket)
+- [ ] **REST API** — HTTP API для интеграции с другими сервисами
+- [ ] **Docker образ** — готовый Docker образ для запуска в контейнере
 
 ### Средний приоритет
 
-- [x] **Resize при конвертации** — автоматическое изменение размера (`--max-width`, `--max-height`)
-- [x] **Профили качества** — пресеты для разных сценариев (`--preset web`, `--preset print`, `--preset archive`, `--preset thumbnail`)
-- [x] **Watch mode** — режим слежения за директорией с автоматической конвертацией новых файлов (`--watch`)
-- [x] **Расширенная статистика** — детальный отчёт: экономия места, размеры входных/выходных файлов
+- [ ] **Plugin система** — возможность добавлять кастомные обработчики и фильтры
+- [ ] **Watermark** — добавление водяных знаков на изображения
+- [ ] **Метаданные** — сохранение/редактирование EXIF, IPTC, XMP метаданных
 
 ### Низкий приоритет
 
-- [ ] **Web UI** — простой веб-интерфейс для мониторинга и управления задачами
-- [x] **Batch presets** — сохранение и загрузка конфигураций для разных проектов (`--save-preset`, `--load-preset`)
-- [x] **Интеграция с CI/CD** — GitHub Actions workflow для автоматической оптимизации изображений
-- [ ] **Plugin система** — возможность добавлять кастомные обработчики
-- [x] **Тестирование** — расширение тестовой покрытости и автоматизация e2e
+- [ ] **AI-улучшение** — upscale через нейросети (Real-ESRGAN, GFPGAN)
+- [ ] **Face detection** — автоматическое определение лиц для smart crop
+- [ ] **Цветовые профили** — конвертация между цветовыми пространствами (sRGB, Adobe RGB, P3)
+- [ ] **PDF экспорт** — создание PDF альбомов из изображений
 
 ### Оптимизация
 
-- [x] **Потоковая обработка** — обработка файлов по мере обнаружения (`--stream`)
-- [x] **Memory limits** — ограничение использования памяти (`--max-memory`)
-- [x] **GPU ускорение** — использование GPU через OpenCL (`--gpu`)
+- [ ] **Распределённая обработка** — обработка на нескольких машинах
+- [ ] **Кэширование** — кэширование промежуточных результатов
+- [ ] **Приоритизация** — обработка файлов по приоритету (размер, дата)
 
 ## Участие в разработке (Contributing)
 
