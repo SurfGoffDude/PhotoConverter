@@ -122,6 +122,18 @@ func NewRootCmd() *cobra.Command {
 	flags.StringVar(&cfg.PDFPageSize, "pdf-size", "a4", "Размер страницы PDF (a4, letter, a3)")
 	flags.IntVar(&cfg.PDFQuality, "pdf-quality", 85, "Качество изображений в PDF (1-100)")
 
+	// Распределённая обработка
+	flags.StringVar(&cfg.RedisURL, "redis", "", "URL Redis для распределённой обработки (redis://host:6379)")
+	flags.StringVar(&cfg.WorkerMode, "worker-mode", "", "Режим работы: master (раздаёт задачи) или worker (выполняет)")
+
+	// Кэширование
+	flags.BoolVar(&cfg.CacheEnabled, "cache", false, "Включить кэширование промежуточных результатов")
+	flags.StringVar(&cfg.CacheDir, "cache-dir", "", "Директория для кэша (по умолчанию .photoconverter/cache)")
+
+	// Сортировка/приоритизация
+	flags.StringVar(&cfg.SortBy, "sort-by", "name", "Сортировка файлов: name, date, size")
+	flags.BoolVar(&cfg.SortDesc, "sort-desc", false, "Сортировка по убыванию (новые/большие первыми)")
+
 	// Пути
 	flags.StringVar(&cfg.DBPath, "db", cfg.DBPath, "Путь к SQLite базе данных")
 	flags.StringVar(&cfg.VipsPath, "vips-path", cfg.VipsPath, "Путь к бинарнику vips")

@@ -50,6 +50,12 @@ photoconverter [flags]
 | `--pdf-output` | string | нет | album.pdf | Путь к выходному PDF файлу |
 | `--pdf-size` | string | нет | a4 | Размер страницы PDF (a4, letter, a3) |
 | `--pdf-quality` | int | нет | 85 | Качество изображений в PDF (1-100) |
+| `--redis` | string | нет | - | URL Redis для распределённой обработки |
+| `--worker-mode` | string | нет | - | Режим: master или worker |
+| `--cache` | bool | нет | false | Включить кэширование результатов |
+| `--cache-dir` | string | нет | .photoconverter/cache | Директория для кэша |
+| `--sort-by` | string | нет | name | Сортировка файлов: name, date, size |
+| `--sort-desc` | bool | нет | false | Сортировка по убыванию |
 
 ### Подкоманды
 

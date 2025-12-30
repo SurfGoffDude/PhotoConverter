@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/artemshloyda/photoconverter/internal/config"
 	"github.com/artemshloyda/photoconverter/internal/storage"
@@ -168,6 +169,102 @@ func ComputeSHA256(path string) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// SortFiles сортирует файлы по заданному критерию.
+// sortBy: "name" (по имени), "date" (по дате), "size" (по размеру).
+// desc: true для сортировки по убыванию.
+func SortFiles(files []File, sortBy string, desc bool) {
+	sort.Slice(files, func(i, j int) bool {
+		var less bool
+		switch sortBy {
+		case "date":
+			less = files[i].Info.Mtime < files[j].Info.Mtime
+		case "size":
+			less = files[i].Info.Size < files[j].Info.Size
+		default: // "name"
+			less = files[i].Path < files[j].Path
+		}
+		if desc {
+			return !less
+		}
+		return less
+	})
+}
+
+// ScanSorted собирает все файлы, сортирует их и возвращает канал.
+func (s *Scanner) ScanSorted(ctx context.Context) (<-chan File, <-chan error) {
+	files := make(chan File, 100)
+	errs := make(chan error, 1)
+
+	go func() {
+		defer close(files)
+		defer close(errs)
+
+		// Собираем все файлы в slice
+		var allFiles []File
+		err := filepath.WalkDir(s.cfg.InputDir, func(path string, d os.DirEntry, err error) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				name := d.Name()
+				if name == ".photoconverter" || name == ".git" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			ext := filepath.Ext(path)
+			if !s.cfg.HasInputExtension(ext) {
+				return nil
+			}
+
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(s.cfg.InputDir, path)
+			absPath, _ := filepath.Abs(path)
+			if absPath == "" {
+				absPath = path
+			}
+
+			allFiles = append(allFiles, File{
+				Path:    absPath,
+				RelPath: relPath,
+				Info: storage.FileInfo{
+					Path:  absPath,
+					Size:  info.Size(),
+					Mtime: info.ModTime().Unix(),
+				},
+			})
+			return nil
+		})
+
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		// Сортируем
+		SortFiles(allFiles, s.cfg.SortBy, s.cfg.SortDesc)
+
+		// Отправляем в канал
+		for _, file := range allFiles {
+			select {
+			case files <- file:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return files, errs
 }
 
 /*

@@ -128,6 +128,24 @@ type Config struct {
 
 	// PDFQuality - качество изображений в PDF (1-100).
 	PDFQuality int
+
+	// RedisURL - URL для подключения к Redis (распределённая обработка).
+	RedisURL string
+
+	// WorkerMode - режим работы: master (раздаёт задачи) или worker (выполняет).
+	WorkerMode string
+
+	// CacheEnabled - включить кэширование промежуточных результатов.
+	CacheEnabled bool
+
+	// CacheDir - директория для кэша.
+	CacheDir string
+
+	// SortBy - сортировка файлов: name, date, size.
+	SortBy string
+
+	// SortDesc - сортировка по убыванию.
+	SortDesc bool
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.
