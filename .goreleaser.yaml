@@ -1,0 +1,93 @@
+# GoReleaser конфигурация для PhotoConverter
+# Документация: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: photoconverter
+    main: ./cmd/photoconverter
+    binary: photoconverter
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/artemshloyda/photoconverter/internal/cli.Version={{.Version}}
+      - -X github.com/artemshloyda/photoconverter/internal/cli.BuildTime={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - deploy.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^feat:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix:'
+      order: 1
+    - title: Performance
+      regexp: '^perf:'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: SurfGoffDude
+    name: PhotoConverter
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+
+brews:
+  - name: photoconverter
+    repository:
+      owner: SurfGoffDude
+      name: homebrew-tap
+    homepage: https://github.com/SurfGoffDude/PhotoConverter
+    description: CLI утилита для массовой конвертации изображений
+    license: MIT
+    dependencies:
+      - name: vips
+    install: |
+      bin.install "photoconverter"
+    test: |
+      system "#{bin}/photoconverter", "version"

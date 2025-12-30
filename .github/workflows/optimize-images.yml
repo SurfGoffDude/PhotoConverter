@@ -1,0 +1,89 @@
+# Пример workflow для автоматической оптимизации изображений в репозитории
+# Скопируйте этот файл в ваш репозиторий и настройте под свои нужды
+
+name: Optimize Images
+
+on:
+  push:
+    paths:
+      - 'assets/**'
+      - 'images/**'
+      - 'static/**'
+  pull_request:
+    paths:
+      - 'assets/**'
+      - 'images/**'
+      - 'static/**'
+  workflow_dispatch:
+    inputs:
+      directory:
+        description: 'Directory to optimize'
+        required: true
+        default: 'assets'
+      format:
+        description: 'Output format (webp, avif, jpg, png)'
+        required: true
+        default: 'webp'
+      quality:
+        description: 'Quality (1-100)'
+        required: true
+        default: '85'
+
+jobs:
+  optimize:
+    name: Optimize Images
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install libvips
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-tools
+
+      - name: Install PhotoConverter
+        run: |
+          # Установка последней версии
+          curl -sSL https://github.com/SurfGoffDude/PhotoConverter/releases/latest/download/photoconverter_linux_amd64.tar.gz | tar xz
+          chmod +x photoconverter
+          sudo mv photoconverter /usr/local/bin/
+
+      - name: Optimize images
+        run: |
+          INPUT_DIR="${{ github.event.inputs.directory || 'assets' }}"
+          FORMAT="${{ github.event.inputs.format || 'webp' }}"
+          QUALITY="${{ github.event.inputs.quality || '85' }}"
+          
+          if [ -d "$INPUT_DIR" ]; then
+            photoconverter \
+              --in "$INPUT_DIR" \
+              --out "$INPUT_DIR/optimized" \
+              --out-format "$FORMAT" \
+              --quality "$QUALITY" \
+              --strip \
+              --verbose
+          else
+            echo "Directory $INPUT_DIR not found"
+            exit 1
+          fi
+
+      - name: Upload optimized images
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-images
+          path: ${{ github.event.inputs.directory || 'assets' }}/optimized/
+
+      - name: Create PR with optimized images
+        if: github.event_name == 'workflow_dispatch'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore: optimize images'
+          title: 'Optimize images in ${{ github.event.inputs.directory }}'
+          body: |
+            Автоматическая оптимизация изображений:
+            - Формат: ${{ github.event.inputs.format }}
+            - Качество: ${{ github.event.inputs.quality }}
+          branch: optimize-images
+          delete-branch: true

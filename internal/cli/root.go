@@ -38,6 +38,12 @@ var configPath string
 // saveConfigPath содержит путь для сохранения конфигурации.
 var saveConfigPath string
 
+// savePresetName содержит имя для сохранения пресета.
+var savePresetName string
+
+// loadPresetName содержит имя пресета для загрузки.
+var loadPresetName string
+
 // NewRootCmd создаёт корневую команду CLI.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -106,11 +112,27 @@ func NewRootCmd() *cobra.Command {
 	flags.StringVar(&configPath, "config", "", "Путь к файлу конфигурации (YAML)")
 	flags.StringVar(&saveConfigPath, "save-config", "", "Сохранить текущие настройки в YAML файл и выйти")
 
+	// Именованные пресеты
+	flags.StringVar(&savePresetName, "save-preset", "", "Сохранить текущие настройки как именованный пресет")
+	flags.StringVar(&loadPresetName, "load-preset", "", "Загрузить именованный пресет")
+
 	// Флаги --in и --out НЕ обязательны, если есть конфиг файл
 	// Валидация происходит в PreRunE после загрузки конфига
 
 	// Парсинг конфигурации и enum-флагов
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		// Загружаем именованный пресет (если указан)
+		if loadPresetName != "" {
+			fc, loadedPath, err := config.LoadPreset(loadPresetName)
+			if err != nil {
+				return err
+			}
+			fc.ApplyToConfig(cfg)
+			if cfg.Verbose {
+				fmt.Printf("📦 Загружен пресет '%s': %s\n", loadPresetName, loadedPath)
+			}
+		}
+
 		// Загружаем конфигурацию из файла (если есть)
 		fc, loadedPath, err := config.FindAndLoadConfig(configPath)
 		if err != nil {
@@ -172,6 +194,7 @@ func NewRootCmd() *cobra.Command {
 	// Подкоманды
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newStatsCmd())
+	rootCmd.AddCommand(newPresetsCmd())
 
 	return rootCmd
 }
@@ -192,6 +215,16 @@ func runConvert(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("ошибка сохранения конфигурации: %w", err)
 		}
 		fmt.Printf("💾 Конфигурация сохранена в: %s\n", savedPath)
+		return nil
+	}
+
+	// Сохранение именованного пресета если указан флаг --save-preset
+	if savePresetName != "" {
+		savedPath, err := config.SavePreset(savePresetName, cfg)
+		if err != nil {
+			return fmt.Errorf("ошибка сохранения пресета: %w", err)
+		}
+		fmt.Printf("📦 Пресет '%s' сохранён в: %s\n", savePresetName, savedPath)
 		return nil
 	}
 

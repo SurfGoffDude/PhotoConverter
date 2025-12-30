@@ -35,6 +35,8 @@ photoconverter [flags]
 | `--max-height` | int | нет | 0 | Максимальная высота изображения (0 = без ограничения) |
 | `--preset` | string | нет | - | Профиль качества (web/print/archive/thumbnail) |
 | `--watch` | bool | нет | false | Режим слежения за директорией |
+| `--save-preset` | string | нет | - | Сохранить настройки как именованный пресет |
+| `--load-preset` | string | нет | - | Загрузить именованный пресет |
 
 ### Подкоманды
 
