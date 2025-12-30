@@ -28,6 +28,39 @@ type Stats struct {
 
 	// Total - общее количество файлов.
 	Total int64
+
+	// InputBytes - общий размер входных файлов (обработанных).
+	InputBytes int64
+
+	// OutputBytes - общий размер выходных файлов.
+	OutputBytes int64
+}
+
+// SavedBytes возвращает количество сэкономленных байт.
+func (s *Stats) SavedBytes() int64 {
+	return s.InputBytes - s.OutputBytes
+}
+
+// SavedPercent возвращает процент экономии.
+func (s *Stats) SavedPercent() float64 {
+	if s.InputBytes == 0 {
+		return 0
+	}
+	return float64(s.SavedBytes()) / float64(s.InputBytes) * 100
+}
+
+// FormatBytes форматирует байты в человекочитаемый формат.
+func FormatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 // Pool управляет пулом воркеров для обработки файлов.
@@ -187,6 +220,12 @@ func (p *Pool) processFile(ctx context.Context, file scanner.File) {
 		return
 	}
 
+	// Обновляем статистику размеров
+	atomic.AddInt64(&p.stats.InputBytes, file.Info.Size)
+	if outInfo, err := os.Stat(dstPath); err == nil {
+		atomic.AddInt64(&p.stats.OutputBytes, outInfo.Size())
+	}
+
 	if p.verbose {
 		if p.progress != nil && !p.progress.IsDisabled() {
 			p.progress.WriteMessage("✅ %s -> %s (%.2fs)\n", file.RelPath, dstPath, convResult.Duration.Seconds())
@@ -212,10 +251,12 @@ func (p *Pool) logError(path string, err error) {
 // GetStats возвращает текущую статистику.
 func (p *Pool) GetStats() Stats {
 	return Stats{
-		Processed: atomic.LoadInt64(&p.stats.Processed),
-		Skipped:   atomic.LoadInt64(&p.stats.Skipped),
-		Failed:    atomic.LoadInt64(&p.stats.Failed),
-		Total:     atomic.LoadInt64(&p.stats.Total),
+		Processed:   atomic.LoadInt64(&p.stats.Processed),
+		Skipped:     atomic.LoadInt64(&p.stats.Skipped),
+		Failed:      atomic.LoadInt64(&p.stats.Failed),
+		Total:       atomic.LoadInt64(&p.stats.Total),
+		InputBytes:  atomic.LoadInt64(&p.stats.InputBytes),
+		OutputBytes: atomic.LoadInt64(&p.stats.OutputBytes),
 	}
 }
 

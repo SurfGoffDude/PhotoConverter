@@ -17,6 +17,7 @@ import (
 	"github.com/artemshloyda/photoconverter/internal/scanner"
 	"github.com/artemshloyda/photoconverter/internal/storage"
 	"github.com/artemshloyda/photoconverter/internal/vipsfinder"
+	"github.com/artemshloyda/photoconverter/internal/watcher"
 	"github.com/artemshloyda/photoconverter/internal/worker"
 )
 
@@ -77,10 +78,18 @@ func NewRootCmd() *cobra.Command {
 	flags.IntVar(&cfg.Quality, "quality", cfg.Quality, "Качество для lossy форматов (1-100)")
 	flags.BoolVar(&cfg.StripMetadata, "strip", cfg.StripMetadata, "Удалить метаданные из изображений")
 
+	// Resize параметры
+	flags.IntVar(&cfg.MaxWidth, "max-width", cfg.MaxWidth, "Максимальная ширина изображения (0 = без ограничения)")
+	flags.IntVar(&cfg.MaxHeight, "max-height", cfg.MaxHeight, "Максимальная высота изображения (0 = без ограничения)")
+
+	// Профиль качества
+	preset := flags.String("preset", "", "Профиль качества: web, print, archive, thumbnail")
+
 	// Режим работы
 	mode := flags.String("mode", string(cfg.Mode), "Режим: skip (по умолчанию) или dedup")
 	flags.BoolVar(&cfg.KeepTree, "keep-tree", cfg.KeepTree, "Сохранять структуру директорий")
 	flags.BoolVar(&cfg.DryRun, "dry-run", cfg.DryRun, "Симуляция без реальной конвертации")
+	flags.BoolVar(&cfg.Watch, "watch", cfg.Watch, "Режим слежения за директорией")
 
 	// Производительность
 	flags.IntVar(&cfg.Workers, "workers", cfg.Workers, "Количество параллельных воркеров")
@@ -115,13 +124,26 @@ func NewRootCmd() *cobra.Command {
 			}
 		}
 
-		// CLI флаги переопределяют значения из файла
+		// Применяем пресет (если указан) - он задаёт базовые настройки
+		if cmd.Flags().Changed("preset") && *preset != "" {
+			if !cfg.ApplyPreset(*preset) {
+				return fmt.Errorf("неизвестный пресет: %s (доступны: %v)", *preset, config.ValidPresets())
+			}
+			cfg.Preset = *preset
+		} else if cfg.Preset != "" {
+			// Пресет из конфига
+			if !cfg.ApplyPreset(cfg.Preset) {
+				return fmt.Errorf("неизвестный пресет в конфиге: %s", cfg.Preset)
+			}
+		}
+
+		// CLI флаги переопределяют значения из файла и пресета
 		// (cobra уже применила их к cfg)
 		if cmd.Flags().Changed("out-format") {
 			cfg.OutputFormat = config.OutputFormat(*outFormat)
 		} else if fc != nil && fc.Output != nil && fc.Output.Format != "" {
 			// Уже применено в ApplyToConfig
-		} else {
+		} else if cfg.Preset == "" {
 			cfg.OutputFormat = config.OutputFormat(*outFormat)
 		}
 
@@ -215,6 +237,40 @@ func runConvert(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Создаём пул воркеров
+	pool := worker.New(cfg, store, conv)
+
+	// Выводим параметры
+	fmt.Printf("🚀 Запуск конвертации:\n")
+	fmt.Printf("   Вход: %s\n", cfg.InputDir)
+	fmt.Printf("   Выход: %s\n", cfg.OutputDir)
+	fmt.Printf("   Формат: %s (качество: %d)\n", cfg.OutputFormat, cfg.Quality)
+	if cfg.MaxWidth > 0 || cfg.MaxHeight > 0 {
+		fmt.Printf("   Resize: max %dx%d\n", cfg.MaxWidth, cfg.MaxHeight)
+	}
+	if cfg.Preset != "" {
+		fmt.Printf("   Пресет: %s\n", cfg.Preset)
+	}
+	fmt.Printf("   Режим: %s\n", cfg.Mode)
+	fmt.Printf("   Воркеров: %d\n", cfg.Workers)
+	if cfg.DryRun {
+		fmt.Println("   ⚠️  Dry-run режим (без реальной конвертации)")
+	}
+	if cfg.Watch {
+		fmt.Println("   👁️  Watch режим (слежение за директорией)")
+	}
+	fmt.Println()
+
+	// Watch mode или обычный режим
+	if cfg.Watch {
+		return runWatchMode(ctx, pool)
+	}
+
+	return runNormalMode(ctx, pool, startTime)
+}
+
+// runNormalMode выполняет обычную конвертацию.
+func runNormalMode(ctx context.Context, pool *worker.Pool, startTime time.Time) error {
 	// Создаём сканер
 	scan := scanner.New(cfg)
 
@@ -227,9 +283,6 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	// Запускаем сканирование
 	files, errChan := scan.Scan(ctx)
 
-	// Создаём пул воркеров
-	pool := worker.New(cfg, store, conv)
-
 	// Создаём прогресс-бар
 	progressBar := progress.New(progress.Options{
 		Total:       int64(fileCount),
@@ -237,18 +290,6 @@ func runConvert(cmd *cobra.Command, args []string) error {
 		Disabled:    cfg.NoProgress || cfg.DryRun,
 	})
 	pool.SetProgressBar(progressBar)
-
-	// Выводим параметры
-	fmt.Printf("🚀 Запуск конвертации:\n")
-	fmt.Printf("   Вход: %s\n", cfg.InputDir)
-	fmt.Printf("   Выход: %s\n", cfg.OutputDir)
-	fmt.Printf("   Формат: %s (качество: %d)\n", cfg.OutputFormat, cfg.Quality)
-	fmt.Printf("   Режим: %s\n", cfg.Mode)
-	fmt.Printf("   Воркеров: %d\n", cfg.Workers)
-	if cfg.DryRun {
-		fmt.Println("   ⚠️  Dry-run режим (без реальной конвертации)")
-	}
-	fmt.Println()
 
 	// Запускаем обработку
 	stats := pool.Process(ctx, files, errChan)
@@ -265,9 +306,60 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Ошибок: %d\n", stats.Failed)
 	fmt.Printf("   Время: %s\n", duration.Round(time.Millisecond))
 
+	// Расширенная статистика размеров
+	if stats.InputBytes > 0 {
+		fmt.Printf("   Размер входных: %s\n", worker.FormatBytes(stats.InputBytes))
+		fmt.Printf("   Размер выходных: %s\n", worker.FormatBytes(stats.OutputBytes))
+		saved := stats.SavedBytes()
+		if saved > 0 {
+			fmt.Printf("   💾 Экономия: %s (%.1f%%)\n", worker.FormatBytes(saved), stats.SavedPercent())
+		} else if saved < 0 {
+			fmt.Printf("   ⚠️  Увеличение: %s (+%.1f%%)\n", worker.FormatBytes(-saved), -stats.SavedPercent())
+		}
+	}
+
 	if stats.Failed > 0 {
 		return fmt.Errorf("завершено с %d ошибками", stats.Failed)
 	}
+
+	return nil
+}
+
+// runWatchMode выполняет конвертацию в режиме слежения.
+func runWatchMode(ctx context.Context, pool *worker.Pool) error {
+	// Создаём watcher
+	w, err := watcher.New(cfg)
+	if err != nil {
+		return fmt.Errorf("не удалось создать watcher: %w", err)
+	}
+	defer w.Close()
+
+	// Запускаем слежение
+	files, err := w.Watch(ctx)
+	if err != nil {
+		return fmt.Errorf("ошибка запуска watch: %w", err)
+	}
+
+	fmt.Println("👁️  Слежение запущено. Нажмите Ctrl+C для остановки.")
+
+	// Прогресс-бар для watch mode (без общего счётчика)
+	progressBar := progress.New(progress.Options{
+		Total:       -1, // Бесконечный режим
+		Description: "👁️ Watch",
+		Disabled:    cfg.NoProgress,
+	})
+	pool.SetProgressBar(progressBar)
+
+	// Обрабатываем файлы по мере поступления
+	stats := pool.Process(ctx, files, nil)
+
+	progressBar.Finish()
+
+	fmt.Println()
+	fmt.Printf("📊 Результаты watch режима:\n")
+	fmt.Printf("   Обработано: %d\n", stats.Processed)
+	fmt.Printf("   Пропущено: %d\n", stats.Skipped)
+	fmt.Printf("   Ошибок: %d\n", stats.Failed)
 
 	return nil
 }

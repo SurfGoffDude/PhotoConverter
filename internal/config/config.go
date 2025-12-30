@@ -77,6 +77,18 @@ type Config struct {
 
 	// NoProgress - отключить прогресс-бар.
 	NoProgress bool
+
+	// MaxWidth - максимальная ширина изображения (0 = без ограничения).
+	MaxWidth int
+
+	// MaxHeight - максимальная высота изображения (0 = без ограничения).
+	MaxHeight int
+
+	// Preset - профиль качества (web, print, archive).
+	Preset string
+
+	// Watch - режим слежения за директорией.
+	Watch bool
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.
@@ -129,6 +141,8 @@ func (c *Config) OutputParams() string {
 		"format":         c.OutputFormat,
 		"quality":        c.Quality,
 		"strip_metadata": c.StripMetadata,
+		"max_width":      c.MaxWidth,
+		"max_height":     c.MaxHeight,
 	}
 	b, _ := json.Marshal(params)
 	return string(b)

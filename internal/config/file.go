@@ -50,6 +50,12 @@ type OutputConfig struct {
 
 	// KeepTree - сохранять структуру директорий.
 	KeepTree *bool `yaml:"keep_tree,omitempty"`
+
+	// MaxWidth - максимальная ширина изображения.
+	MaxWidth int `yaml:"max_width,omitempty"`
+
+	// MaxHeight - максимальная высота изображения.
+	MaxHeight int `yaml:"max_height,omitempty"`
 }
 
 // ProcessingConfig содержит настройки обработки.
@@ -68,6 +74,12 @@ type ProcessingConfig struct {
 
 	// NoProgress - отключить прогресс-бар.
 	NoProgress bool `yaml:"no_progress,omitempty"`
+
+	// Preset - профиль качества (web, print, archive, thumbnail).
+	Preset string `yaml:"preset,omitempty"`
+
+	// Watch - режим слежения за директорией.
+	Watch bool `yaml:"watch,omitempty"`
 }
 
 // PathsConfig содержит настройки путей.
@@ -166,6 +178,8 @@ func FromConfig(cfg *Config) *FileConfig {
 			Quality:       cfg.Quality,
 			StripMetadata: cfg.StripMetadata,
 			KeepTree:      &keepTree,
+			MaxWidth:      cfg.MaxWidth,
+			MaxHeight:     cfg.MaxHeight,
 		},
 		Processing: &ProcessingConfig{
 			Workers:    cfg.Workers,
@@ -173,6 +187,8 @@ func FromConfig(cfg *Config) *FileConfig {
 			DryRun:     cfg.DryRun,
 			Verbose:    cfg.Verbose,
 			NoProgress: cfg.NoProgress,
+			Preset:     cfg.Preset,
+			Watch:      cfg.Watch,
 		},
 		Paths: &PathsConfig{
 			DB:       cfg.DBPath,
@@ -259,6 +275,12 @@ func (fc *FileConfig) ApplyToConfig(cfg *Config) {
 		if fc.Output.KeepTree != nil {
 			cfg.KeepTree = *fc.Output.KeepTree
 		}
+		if fc.Output.MaxWidth > 0 {
+			cfg.MaxWidth = fc.Output.MaxWidth
+		}
+		if fc.Output.MaxHeight > 0 {
+			cfg.MaxHeight = fc.Output.MaxHeight
+		}
 	}
 
 	// Processing
@@ -277,6 +299,12 @@ func (fc *FileConfig) ApplyToConfig(cfg *Config) {
 		}
 		if fc.Processing.NoProgress {
 			cfg.NoProgress = true
+		}
+		if fc.Processing.Preset != "" {
+			cfg.Preset = fc.Processing.Preset
+		}
+		if fc.Processing.Watch {
+			cfg.Watch = true
 		}
 	}
 

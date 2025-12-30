@@ -86,8 +86,30 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	// Выполняем конвертацию
-	cmd := exec.CommandContext(ctx, c.vipsPath, "copy", srcPath, outWithParams)
+	// Выбираем команду: thumbnail (с resize) или copy (без resize)
+	var cmd *exec.Cmd
+	if c.cfg.MaxWidth > 0 || c.cfg.MaxHeight > 0 {
+		// Используем vips thumbnail для resize
+		// vips thumbnail input output width --height=height
+		args := []string{"thumbnail", srcPath, outWithParams}
+
+		// Определяем размер для thumbnail
+		// vips thumbnail использует width как основной параметр
+		width := c.cfg.MaxWidth
+		if width == 0 {
+			width = 100000 // Большое число = без ограничения по ширине
+		}
+		args = append(args, fmt.Sprintf("%d", width))
+
+		if c.cfg.MaxHeight > 0 {
+			args = append(args, fmt.Sprintf("--height=%d", c.cfg.MaxHeight))
+		}
+
+		cmd = exec.CommandContext(ctx, c.vipsPath, args...)
+	} else {
+		// Обычная конвертация без resize
+		cmd = exec.CommandContext(ctx, c.vipsPath, "copy", srcPath, outWithParams)
+	}
 
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
