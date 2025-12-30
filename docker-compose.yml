@@ -1,0 +1,71 @@
+# PhotoConverter Docker Compose
+# Упрощает запуск и управление контейнером
+
+services:
+  photoconverter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: photoconverter:latest
+    container_name: photoconverter
+    volumes:
+      # Входная директория с изображениями (только чтение)
+      - ${INPUT_DIR:-./input}:/data/input:ro
+      # Выходная директория для результатов
+      - ${OUTPUT_DIR:-./output}:/data/output
+      # Конфигурационный файл (опционально)
+      - ${CONFIG_FILE:-./photoconverter.yaml}:/data/config/photoconverter.yaml:ro
+    environment:
+      # Переменные окружения для vips
+      - VIPS_CONCURRENCY=${VIPS_CONCURRENCY:-0}
+      - VIPS_DISC_THRESHOLD=${VIPS_DISC_THRESHOLD:-100m}
+    # Команда по умолчанию
+    command: >
+      --in /data/input
+      --out /data/output
+      --config /data/config/photoconverter.yaml
+    # Ограничение ресурсов (опционально)
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-4}'
+          memory: ${MEMORY_LIMIT:-4G}
+
+  # Режим watch - автоматическая конвертация новых файлов
+  photoconverter-watch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: photoconverter:latest
+    container_name: photoconverter-watch
+    profiles:
+      - watch
+    volumes:
+      - ${INPUT_DIR:-./input}:/data/input:ro
+      - ${OUTPUT_DIR:-./output}:/data/output
+      - ${CONFIG_FILE:-./photoconverter.yaml}:/data/config/photoconverter.yaml:ro
+    environment:
+      - VIPS_CONCURRENCY=${VIPS_CONCURRENCY:-0}
+    command: >
+      --in /data/input
+      --out /data/output
+      --config /data/config/photoconverter.yaml
+      --watch
+    restart: unless-stopped
+
+# Примеры использования:
+#
+# 1. Сборка образа:
+#    docker-compose build
+#
+# 2. Конвертация с настройками по умолчанию:
+#    INPUT_DIR=/path/to/photos OUTPUT_DIR=/path/to/output docker-compose run --rm photoconverter
+#
+# 3. Конвертация с кастомными параметрами:
+#    docker-compose run --rm photoconverter --in /data/input --out /data/output --out-format webp --quality 90
+#
+# 4. Запуск в режиме watch:
+#    INPUT_DIR=/path/to/photos OUTPUT_DIR=/path/to/output docker-compose --profile watch up -d photoconverter-watch
+#
+# 5. Остановка watch режима:
+#    docker-compose --profile watch down

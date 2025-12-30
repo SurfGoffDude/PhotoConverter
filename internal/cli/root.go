@@ -103,6 +103,15 @@ func NewRootCmd() *cobra.Command {
 	flags.IntVar(&cfg.MaxMemoryMB, "max-memory", cfg.MaxMemoryMB, "Ограничение памяти в МБ (0 = без ограничения)")
 	flags.BoolVar(&cfg.UseGPU, "gpu", cfg.UseGPU, "Использовать GPU ускорение (OpenCL)")
 
+	// Водяной знак
+	flags.StringVar(&cfg.WatermarkPath, "watermark", cfg.WatermarkPath, "Путь к изображению водяного знака")
+	flags.StringVar(&cfg.WatermarkPosition, "watermark-pos", "bottomright", "Позиция водяного знака (bottomright, bottomleft, topright, topleft, center)")
+	flags.IntVar(&cfg.WatermarkOpacity, "watermark-opacity", 100, "Прозрачность водяного знака (0-100)")
+	flags.IntVar(&cfg.WatermarkScale, "watermark-scale", 0, "Масштаб водяного знака в % от изображения (0 = без масштабирования)")
+
+	// Метаданные
+	flags.BoolVar(&cfg.CopyMetadata, "copy-metadata", cfg.CopyMetadata, "Копировать EXIF/IPTC метаданные из исходного файла")
+
 	// Пути
 	flags.StringVar(&cfg.DBPath, "db", cfg.DBPath, "Путь к SQLite базе данных")
 	flags.StringVar(&cfg.VipsPath, "vips-path", cfg.VipsPath, "Путь к бинарнику vips")

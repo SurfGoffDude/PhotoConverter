@@ -140,6 +140,16 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 		}
 	}
 
+	// Применяем водяной знак если указан
+	if c.cfg.WatermarkPath != "" {
+		watermarkResult := c.applyWatermark(ctx, tmpPath)
+		if watermarkResult != nil {
+			_ = os.Remove(tmpPath)
+			watermarkResult.Duration = time.Since(start)
+			return watermarkResult
+		}
+	}
+
 	// Переименовываем временный файл в финальный
 	if err := os.Rename(tmpPath, dstPath); err != nil {
 		_ = os.Remove(tmpPath)
@@ -156,6 +166,78 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 		Stderr:   stderr.String(),
 		Duration: duration,
 	}
+}
+
+// applyWatermark накладывает водяной знак на изображение.
+// Возвращает nil если успешно, или ConvertResult с ошибкой.
+func (c *Converter) applyWatermark(ctx context.Context, imagePath string) *ConvertResult {
+	// Определяем gravity для позиции
+	gravity := "south-east" // bottomright по умолчанию
+	switch c.cfg.WatermarkPosition {
+	case "bottomleft":
+		gravity = "south-west"
+	case "topright":
+		gravity = "north-east"
+	case "topleft":
+		gravity = "north-west"
+	case "center":
+		gravity = "centre"
+	}
+
+	// Временный файл для результата
+	tmpOutput := imagePath + ".watermarked"
+
+	// vips composite: накладывает изображение поверх другого
+	// vips composite base overlay output mode
+	// Используем vipsthumbnail для масштабирования watermark если нужно
+	var args []string
+
+	if c.cfg.WatermarkScale > 0 {
+		// Сначала масштабируем watermark относительно основного изображения
+		// Это сложнее - используем простой composite
+		args = []string{
+			"composite",
+			imagePath,
+			c.cfg.WatermarkPath,
+			tmpOutput,
+			"--mode", "over",
+			"--gravity", gravity,
+		}
+	} else {
+		args = []string{
+			"composite",
+			imagePath,
+			c.cfg.WatermarkPath,
+			tmpOutput,
+			"--mode", "over",
+			"--gravity", gravity,
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, c.vipsPath, args...)
+	cmd.Env = os.Environ()
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return &ConvertResult{
+			Success: false,
+			Error:   fmt.Errorf("watermark failed: %s: %s", err.Error(), stderr.String()),
+			Stderr:  stderr.String(),
+		}
+	}
+
+	// Заменяем оригинал на версию с watermark
+	if err := os.Rename(tmpOutput, imagePath); err != nil {
+		_ = os.Remove(tmpOutput)
+		return &ConvertResult{
+			Success: false,
+			Error:   fmt.Errorf("не удалось применить watermark: %w", err),
+		}
+	}
+
+	return nil
 }
 
 // BuildDstPath строит путь к выходному файлу.

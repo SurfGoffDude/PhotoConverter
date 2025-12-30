@@ -40,6 +40,11 @@ photoconverter [flags]
 | `--stream` | bool | нет | false | Потоковый режим без предварительного подсчёта файлов |
 | `--max-memory` | int | нет | 0 | Ограничение памяти в МБ (0 = без ограничения) |
 | `--gpu` | bool | нет | false | Использовать GPU ускорение (OpenCL) |
+| `--watermark` | string | нет | - | Путь к изображению водяного знака |
+| `--watermark-pos` | string | нет | bottomright | Позиция водяного знака |
+| `--watermark-opacity` | int | нет | 100 | Прозрачность водяного знака (0-100) |
+| `--watermark-scale` | int | нет | 0 | Масштаб водяного знака в % от изображения |
+| `--copy-metadata` | bool | нет | false | Копировать EXIF/IPTC метаданные |
 
 ### Подкоманды
 

@@ -24,7 +24,8 @@ YELLOW := \033[0;33m
 NC := \033[0m # No Color
 
 .PHONY: all build install install-go uninstall clean test test-coverage coverage coverage-check \
-        coverage-badge run help deps lint check-vips cross build-linux build-darwin build-windows
+        coverage-badge run help deps lint check-vips cross build-linux build-darwin build-windows \
+        docker-build docker-run docker-push
 
 # По умолчанию - сборка
 all: build
@@ -259,8 +260,32 @@ help:
 	@echo "Очистка:"
 	@echo "  clean          - Удалить артефакты сборки"
 	@echo ""
+	@echo "Docker:"
+	@echo "  docker-build   - Собрать Docker образ"
+	@echo "  docker-run     - Запустить контейнер"
+	@echo "  docker-push    - Опубликовать образ"
+	@echo ""
 	@echo "Примеры использования утилиты:"
 	@echo "  ./$(APP_NAME) --in ./photos --out ./converted"
 	@echo "  ./$(APP_NAME) --in ./photos --out ./converted --out-format webp --quality 90"
 	@echo "  ./$(APP_NAME) --in ./photos --out ./converted --mode dedup"
 	@echo ""
+
+## Docker
+
+# Сборка Docker образа
+docker-build:
+	@echo "$(GREEN)Сборка Docker образа...$(NC)"
+	docker build -t $(APP_NAME):latest -t $(APP_NAME):$(VERSION) .
+	@echo "$(GREEN)Готово: $(APP_NAME):$(VERSION)$(NC)"
+
+# Запуск в Docker
+docker-run:
+	@echo "$(GREEN)Запуск в Docker...$(NC)"
+	docker run --rm -it $(APP_NAME):latest --help
+
+# Публикация образа
+docker-push:
+	@echo "$(GREEN)Публикация Docker образа...$(NC)"
+	docker push $(APP_NAME):latest
+	docker push $(APP_NAME):$(VERSION)

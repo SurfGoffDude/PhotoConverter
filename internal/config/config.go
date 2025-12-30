@@ -98,6 +98,21 @@ type Config struct {
 
 	// UseGPU - использовать GPU ускорение (OpenCL).
 	UseGPU bool
+
+	// WatermarkPath - путь к изображению водяного знака.
+	WatermarkPath string
+
+	// WatermarkPosition - позиция водяного знака (bottomright, bottomleft, topright, topleft, center).
+	WatermarkPosition string
+
+	// WatermarkOpacity - прозрачность водяного знака (0-100).
+	WatermarkOpacity int
+
+	// WatermarkScale - масштаб водяного знака относительно изображения (0-100, 0 = без масштабирования).
+	WatermarkScale int
+
+	// CopyMetadata - копировать метаданные из исходного файла.
+	CopyMetadata bool
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.

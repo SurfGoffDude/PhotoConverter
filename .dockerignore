@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Бинарники и артефакты сборки
+photoconverter
+build/
+dist/
+*.exe
+
+# Тестовые файлы и покрытие
+coverage.out
+coverage.html
+*.test
+
+# Документация (не нужна в образе)
+*.md
+!README.md
+docs/
+
+# Примеры и тесты
+examples/
+testdata/
+*_test.go
+
+# Конфигурация разработки
+.env
+.env.local
+photoconverter.yaml
+
+# macOS
+.DS_Store
+._*
+
+# Временные файлы
+*.tmp
+*.temp
+tmp/
