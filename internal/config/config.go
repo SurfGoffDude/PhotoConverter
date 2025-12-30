@@ -113,6 +113,21 @@ type Config struct {
 
 	// CopyMetadata - копировать метаданные из исходного файла.
 	CopyMetadata bool
+
+	// ColorProfile - целевой цветовой профиль (srgb, adobergb, p3).
+	ColorProfile string
+
+	// PDFOutput - создать PDF альбом из изображений.
+	PDFOutput bool
+
+	// PDFPath - путь к выходному PDF файлу.
+	PDFPath string
+
+	// PDFPageSize - размер страницы PDF (a4, letter, a3).
+	PDFPageSize string
+
+	// PDFQuality - качество изображений в PDF (1-100).
+	PDFQuality int
 }
 
 // DefaultConfig возвращает конфигурацию по умолчанию.

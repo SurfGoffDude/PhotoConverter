@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -111,6 +112,15 @@ func NewRootCmd() *cobra.Command {
 
 	// Метаданные
 	flags.BoolVar(&cfg.CopyMetadata, "copy-metadata", cfg.CopyMetadata, "Копировать EXIF/IPTC метаданные из исходного файла")
+
+	// Цветовые профили
+	flags.StringVar(&cfg.ColorProfile, "color-profile", "", "Целевой цветовой профиль (srgb, adobergb, p3)")
+
+	// PDF экспорт
+	flags.BoolVar(&cfg.PDFOutput, "pdf", cfg.PDFOutput, "Создать PDF альбом из изображений")
+	flags.StringVar(&cfg.PDFPath, "pdf-output", "", "Путь к выходному PDF файлу")
+	flags.StringVar(&cfg.PDFPageSize, "pdf-size", "a4", "Размер страницы PDF (a4, letter, a3)")
+	flags.IntVar(&cfg.PDFQuality, "pdf-quality", 85, "Качество изображений в PDF (1-100)")
 
 	// Пути
 	flags.StringVar(&cfg.DBPath, "db", cfg.DBPath, "Путь к SQLite базе данных")
@@ -441,6 +451,43 @@ func runNormalMode(ctx context.Context, pool *worker.Pool, startTime time.Time) 
 		return fmt.Errorf("завершено с %d ошибками", stats.Failed)
 	}
 
+	// PDF экспорт если включён
+	if cfg.PDFOutput {
+		if err := exportToPDF(ctx); err != nil {
+			fmt.Printf("⚠️  Ошибка PDF экспорта: %v\n", err)
+		}
+	}
+
+	return nil
+}
+
+// exportToPDF создаёт PDF альбом из обработанных изображений.
+func exportToPDF(ctx context.Context) error {
+	pdfExporter := converter.NewPDFExporter(cfg.VipsPath, cfg)
+
+	// Собираем изображения
+	images, err := pdfExporter.CollectImages()
+	if err != nil {
+		return fmt.Errorf("не удалось собрать изображения: %w", err)
+	}
+
+	if len(images) == 0 {
+		return fmt.Errorf("нет изображений для PDF")
+	}
+
+	// Определяем путь к PDF
+	pdfPath := cfg.PDFPath
+	if pdfPath == "" {
+		pdfPath = filepath.Join(cfg.OutputDir, "album.pdf")
+	}
+
+	fmt.Printf("📚 Создание PDF альбома (%d изображений)...\n", len(images))
+
+	if err := pdfExporter.ExportToPDF(ctx, images, pdfPath); err != nil {
+		return err
+	}
+
+	fmt.Printf("✅ PDF сохранён: %s\n", pdfPath)
 	return nil
 }
 

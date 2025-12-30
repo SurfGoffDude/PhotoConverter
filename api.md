@@ -45,6 +45,11 @@ photoconverter [flags]
 | `--watermark-opacity` | int | нет | 100 | Прозрачность водяного знака (0-100) |
 | `--watermark-scale` | int | нет | 0 | Масштаб водяного знака в % от изображения |
 | `--copy-metadata` | bool | нет | false | Копировать EXIF/IPTC метаданные |
+| `--color-profile` | string | нет | - | Цветовой профиль (srgb, adobergb, p3) |
+| `--pdf` | bool | нет | false | Создать PDF альбом из изображений |
+| `--pdf-output` | string | нет | album.pdf | Путь к выходному PDF файлу |
+| `--pdf-size` | string | нет | a4 | Размер страницы PDF (a4, letter, a3) |
+| `--pdf-quality` | int | нет | 85 | Качество изображений в PDF (1-100) |
 
 ### Подкоманды
 

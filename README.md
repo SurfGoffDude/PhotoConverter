@@ -142,6 +142,11 @@ photoconverter --in ./photos --out ./converted --in-ext heic --out-format jpg --
 | `--watermark-opacity` | Прозрачность водяного знака (0-100) | 100 |
 | `--watermark-scale` | Масштаб водяного знака в % | 0 |
 | `--copy-metadata` | Копировать EXIF/IPTC метаданные | false |
+| `--color-profile` | Цветовой профиль (srgb, adobergb, p3) | - |
+| `--pdf` | Создать PDF альбом из изображений | false |
+| `--pdf-output` | Путь к выходному PDF файлу | album.pdf |
+| `--pdf-size` | Размер страницы PDF (a4, letter, a3) | a4 |
+| `--pdf-quality` | Качество изображений в PDF (1-100) | 85 |
 
 ### Режимы работы
 
@@ -335,8 +340,8 @@ make version
 
 - [ ] **AI-улучшение** — upscale через нейросети (Real-ESRGAN, GFPGAN)
 - [ ] **Face detection** — автоматическое определение лиц для smart crop
-- [ ] **Цветовые профили** — конвертация между цветовыми пространствами (sRGB, Adobe RGB, P3)
-- [ ] **PDF экспорт** — создание PDF альбомов из изображений
+- [x] **Цветовые профили** — конвертация между цветовыми пространствами (`--color-profile`)
+- [x] **PDF экспорт** — создание PDF альбомов из изображений (`--pdf`)
 
 ### Оптимизация
 

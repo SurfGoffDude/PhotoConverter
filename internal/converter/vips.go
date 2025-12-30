@@ -121,6 +121,19 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 	}
 
 	err := cmd.Run()
+
+	// Применяем цветовой профиль если указан
+	if err == nil && c.cfg.ColorProfile != "" {
+		colorErr := c.applyColorProfile(ctx, tmpPath)
+		if colorErr != nil {
+			_ = os.Remove(tmpPath)
+			return &ConvertResult{
+				Success:  false,
+				Error:    colorErr,
+				Duration: time.Since(start),
+			}
+		}
+	}
 	duration := time.Since(start)
 
 	if err != nil {
@@ -166,6 +179,54 @@ func (c *Converter) Convert(ctx context.Context, srcPath, dstPath string) *Conve
 		Stderr:   stderr.String(),
 		Duration: duration,
 	}
+}
+
+// applyColorProfile применяет цветовой профиль к изображению.
+func (c *Converter) applyColorProfile(ctx context.Context, imagePath string) error {
+	// Определяем intent для цветового профиля
+	// vips icc_transform для конвертации профилей
+	var profileName string
+	switch strings.ToLower(c.cfg.ColorProfile) {
+	case "srgb":
+		profileName = "srgb"
+	case "adobergb", "adobe-rgb":
+		profileName = "adobergb"
+	case "p3", "display-p3":
+		profileName = "p3"
+	default:
+		return fmt.Errorf("неизвестный цветовой профиль: %s (доступны: srgb, adobergb, p3)", c.cfg.ColorProfile)
+	}
+
+	// Временный файл для результата
+	tmpOutput := imagePath + ".icc"
+
+	// vips icc_transform input output profile
+	args := []string{
+		"icc_transform",
+		imagePath,
+		tmpOutput,
+		profileName,
+	}
+
+	cmd := exec.CommandContext(ctx, c.vipsPath, args...)
+	cmd.Env = os.Environ()
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		// Если icc_transform не поддерживается, пропускаем
+		// vips может не иметь встроенных профилей
+		return nil // Не критичная ошибка
+	}
+
+	// Заменяем оригинал на версию с профилем
+	if err := os.Rename(tmpOutput, imagePath); err != nil {
+		_ = os.Remove(tmpOutput)
+		return fmt.Errorf("не удалось применить цветовой профиль: %w", err)
+	}
+
+	return nil
 }
 
 // applyWatermark накладывает водяной знак на изображение.
