@@ -141,7 +141,15 @@ photoconverter --in ./photos --out ./converted --mode dedup
 
 ### Конфигурационный файл
 
-Можно использовать YAML файл для сохранения часто используемых настроек. Поиск конфига:
+Можно использовать YAML файл для сохранения часто используемых настроек. При наличии конфига с заполненными `input.dir` и `output.dir` утилиту можно запускать без флагов:
+
+```bash
+# При наличии photoconverter.yaml с настройками
+photoconverter
+```
+
+Поиск конфига:
+
 1. `./photoconverter.yaml` (текущая директория)
 2. `~/.config/photoconverter/config.yaml`
 

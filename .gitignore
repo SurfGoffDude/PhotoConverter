@@ -1,0 +1,151 @@
+# =========================
+# Go
+# =========================
+
+# Бинарные файлы
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+photoconverter
+photoconverter.exe
+
+# Тестовые бинарники
+*.test
+
+# Профилирование
+*.prof
+*.out
+cpu.pprof
+mem.pprof
+
+# Зависимости (vendor не игнорируем, если используется)
+# vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# =========================
+# Сборка и дистрибутивы
+# =========================
+
+# Директория сборки
+dist/
+build/
+bin/
+
+# Покрытие тестами
+coverage.html
+coverage.out
+coverage.txt
+*.coverprofile
+
+# =========================
+# IDE и редакторы
+# =========================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# GoLand / JetBrains
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.#*
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# =========================
+# Windows
+# =========================
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# =========================
+# Linux
+# =========================
+
+*~
+.directory
+.Trash-*
+
+# =========================
+# PhotoConverter специфичные
+# =========================
+
+# SQLite база данных состояния
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+state.sqlite
+.photoconverter/
+
+# Конфигурационные файлы (пользовательские)
+photoconverter.yaml
+photoconverter.yml
+
+# Временные файлы конвертации
+*.converting.*
+
+# Логи
+*.log
+logs/
+
+# =========================
+# Тестовые данные
+# =========================
+
+# Тестовые изображения (если большие)
+testdata/output/
+test_output/
+tmp/
+temp/
+
+# =========================
+# Docker
+# =========================
+
+.docker/
+
+# =========================
+# Прочее
+# =========================
+
+# Переменные окружения
+.env
+.env.local
+.env.*.local
+
+# Секреты
+*.pem
+*.key
+secrets/

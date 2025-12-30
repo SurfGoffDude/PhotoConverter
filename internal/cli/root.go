@@ -97,9 +97,8 @@ func NewRootCmd() *cobra.Command {
 	flags.StringVar(&configPath, "config", "", "Путь к файлу конфигурации (YAML)")
 	flags.StringVar(&saveConfigPath, "save-config", "", "Сохранить текущие настройки в YAML файл и выйти")
 
-	// Обязательные флаги
-	_ = rootCmd.MarkFlagRequired("in")
-	_ = rootCmd.MarkFlagRequired("out")
+	// Флаги --in и --out НЕ обязательны, если есть конфиг файл
+	// Валидация происходит в PreRunE после загрузки конфига
 
 	// Парсинг конфигурации и enum-флагов
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
@@ -132,6 +131,17 @@ func NewRootCmd() *cobra.Command {
 			// Уже применено в ApplyToConfig
 		} else {
 			cfg.Mode = config.Mode(*mode)
+		}
+
+		// Проверяем обязательные поля после загрузки конфига
+		// (--save-config не требует --in/--out заполненными)
+		if saveConfigPath == "" {
+			if cfg.InputDir == "" {
+				return fmt.Errorf("входная директория не указана (--in или в конфиг файле)")
+			}
+			if cfg.OutputDir == "" {
+				return fmt.Errorf("выходная директория не указана (--out или в конфиг файле)")
+			}
 		}
 
 		return nil
