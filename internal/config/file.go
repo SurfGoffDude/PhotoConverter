@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -167,6 +168,18 @@ func FindAndLoadConfig(configPath string) (*FileConfig, string, error) {
 // Используется для сохранения текущих настроек в файл.
 func FromConfig(cfg *Config) *FileConfig {
 	keepTree := cfg.KeepTree
+
+	// Пересчитываем путь к БД на основе output.dir,
+	// если он был автоматически сгенерирован
+	dbPath := cfg.DBPath
+	if cfg.OutputDir != "" {
+		expectedDBPath := filepath.Join(cfg.OutputDir, ".photoconverter", "state.sqlite")
+		// Если DBPath пустой или содержит стандартный суффикс, пересчитываем
+		if dbPath == "" || strings.HasSuffix(dbPath, ".photoconverter/state.sqlite") {
+			dbPath = expectedDBPath
+		}
+	}
+
 	return &FileConfig{
 		Input: &InputConfig{
 			Dir:        cfg.InputDir,
@@ -191,7 +204,7 @@ func FromConfig(cfg *Config) *FileConfig {
 			Watch:      cfg.Watch,
 		},
 		Paths: &PathsConfig{
-			DB:       cfg.DBPath,
+			DB:       dbPath,
 			VipsPath: cfg.VipsPath,
 		},
 	}

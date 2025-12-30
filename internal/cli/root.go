@@ -121,6 +121,24 @@ func NewRootCmd() *cobra.Command {
 
 	// Парсинг конфигурации и enum-флагов
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		// Сохраняем значения CLI флагов ДО загрузки конфига
+		// (Cobra уже применила их к cfg)
+		cliInputDir := cfg.InputDir
+		cliOutputDir := cfg.OutputDir
+		cliInputExtensions := cfg.InputExtensions
+		cliQuality := cfg.Quality
+		cliStripMetadata := cfg.StripMetadata
+		cliKeepTree := cfg.KeepTree
+		cliWorkers := cfg.Workers
+		cliDryRun := cfg.DryRun
+		cliVerbose := cfg.Verbose
+		cliNoProgress := cfg.NoProgress
+		cliDBPath := cfg.DBPath
+		cliVipsPath := cfg.VipsPath
+		cliMaxWidth := cfg.MaxWidth
+		cliMaxHeight := cfg.MaxHeight
+		cliWatch := cfg.Watch
+
 		// Загружаем именованный пресет (если указан)
 		if loadPresetName != "" {
 			fc, loadedPath, err := config.LoadPreset(loadPresetName)
@@ -159,8 +177,56 @@ func NewRootCmd() *cobra.Command {
 			}
 		}
 
-		// CLI флаги переопределяют значения из файла и пресета
-		// (cobra уже применила их к cfg)
+		// CLI флаги имеют приоритет над конфиг файлом
+		// Восстанавливаем значения, если флаги были явно указаны
+		// (проверяем что значение отличается от дефолтного)
+		if cliInputDir != "" {
+			cfg.InputDir = cliInputDir
+		}
+		if cliOutputDir != "" {
+			cfg.OutputDir = cliOutputDir
+		}
+		if len(cliInputExtensions) > 0 && cmd.Flags().Changed("in-ext") {
+			cfg.InputExtensions = cliInputExtensions
+		}
+		if cmd.Flags().Changed("quality") {
+			cfg.Quality = cliQuality
+		}
+		if cmd.Flags().Changed("strip") {
+			cfg.StripMetadata = cliStripMetadata
+		}
+		if cmd.Flags().Changed("keep-tree") {
+			cfg.KeepTree = cliKeepTree
+		}
+		if cmd.Flags().Changed("workers") {
+			cfg.Workers = cliWorkers
+		}
+		if cmd.Flags().Changed("dry-run") {
+			cfg.DryRun = cliDryRun
+		}
+		if cmd.Flags().Changed("verbose") {
+			cfg.Verbose = cliVerbose
+		}
+		if cmd.Flags().Changed("no-progress") {
+			cfg.NoProgress = cliNoProgress
+		}
+		if cliDBPath != "" && cmd.Flags().Changed("db") {
+			cfg.DBPath = cliDBPath
+		}
+		if cliVipsPath != "" && cmd.Flags().Changed("vips-path") {
+			cfg.VipsPath = cliVipsPath
+		}
+		if cmd.Flags().Changed("max-width") {
+			cfg.MaxWidth = cliMaxWidth
+		}
+		if cmd.Flags().Changed("max-height") {
+			cfg.MaxHeight = cliMaxHeight
+		}
+		if cmd.Flags().Changed("watch") {
+			cfg.Watch = cliWatch
+		}
+
+		// Обработка enum-флагов
 		if cmd.Flags().Changed("out-format") {
 			cfg.OutputFormat = config.OutputFormat(*outFormat)
 		} else if fc != nil && fc.Output != nil && fc.Output.Format != "" {
@@ -203,12 +269,8 @@ func NewRootCmd() *cobra.Command {
 func runConvert(cmd *cobra.Command, args []string) error {
 	startTime := time.Now()
 
-	// Валидация конфигурации
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("ошибка конфигурации: %w", err)
-	}
-
 	// Сохранение конфигурации если указан флаг --save-config
+	// (выполняется до валидации, т.к. не требует полной конфигурации)
 	if saveConfigPath != "" {
 		savedPath, err := config.SaveConfig(cfg, saveConfigPath)
 		if err != nil {
@@ -219,6 +281,7 @@ func runConvert(cmd *cobra.Command, args []string) error {
 	}
 
 	// Сохранение именованного пресета если указан флаг --save-preset
+	// (выполняется до валидации, т.к. не требует полной конфигурации)
 	if savePresetName != "" {
 		savedPath, err := config.SavePreset(savePresetName, cfg)
 		if err != nil {
@@ -226,6 +289,11 @@ func runConvert(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Printf("📦 Пресет '%s' сохранён в: %s\n", savePresetName, savedPath)
 		return nil
+	}
+
+	// Валидация конфигурации (только для реальной конвертации)
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("ошибка конфигурации: %w", err)
 	}
 
 	// Создаём контекст с обработкой сигналов
@@ -383,9 +451,33 @@ func runWatchMode(ctx context.Context, pool *worker.Pool) error {
 	})
 	pool.SetProgressBar(progressBar)
 
-	// Обрабатываем файлы по мере поступления
-	stats := pool.Process(ctx, files, nil)
+	// Канал для получения статистики
+	statsChan := make(chan worker.Stats, 1)
 
+	// Запускаем обработку в фоновой горутине
+	go func() {
+		stats := pool.Process(ctx, files, nil)
+		statsChan <- stats
+	}()
+
+	// Ожидаем завершения контекста или обработки
+	select {
+	case <-ctx.Done():
+		// Контекст отменён (Ctrl+C)
+		fmt.Println("\n⏹️  Останавливаем слежение...")
+	case stats := <-statsChan:
+		// Обработка завершилась (не должно происходить в watch mode)
+		progressBar.Finish()
+		fmt.Println()
+		fmt.Printf("📊 Результаты watch режима:\n")
+		fmt.Printf("   Обработано: %d\n", stats.Processed)
+		fmt.Printf("   Пропущено: %d\n", stats.Skipped)
+		fmt.Printf("   Ошибок: %d\n", stats.Failed)
+		return nil
+	}
+
+	// Ждём завершения обработки после отмены контекста
+	stats := <-statsChan
 	progressBar.Finish()
 
 	fmt.Println()
@@ -453,7 +545,6 @@ func Execute() {
 		os.Exit(1)
 	}
 }
-
 
 /*
 Возможные расширения:
